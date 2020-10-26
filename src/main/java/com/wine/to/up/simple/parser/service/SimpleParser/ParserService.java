@@ -3,11 +3,7 @@ package com.wine.to.up.simple.parser.service.SimpleParser;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -31,13 +27,13 @@ import org.springframework.stereotype.Service;
 public class ParserService {
 
     private static String URL;
-    private static final int PAGES_TO_PARSE = 3; // currently max 107, lower const value for testing purposes
+    private static final int PAGES_TO_PARSE = 100; // currently max 107, lower const value for testing purposes
     private static UpdateProducts.UpdateProductsMessage messageToKafka;
     private static String HOME_URL;
     private static String WINE_URL;
 
     private final ExecutorService pagesExecutor = Executors.newSingleThreadExecutor();
-    private final ExecutorService winesExecutor = Executors.newFixedThreadPool(10);
+    private final ExecutorService winesExecutor = Executors.newFixedThreadPool(15);
 
     @Value("${parser.url}")
     public void setURLStatic(String URL_FROM_PROPERTY) {
@@ -108,7 +104,11 @@ public class ParserService {
                             if (!products.contains(newProduct)) {
                                 products.add(newProduct);
                             }
-                            dbHandler.saveAllWineParsedInfo(wine);
+                            try {
+                                dbHandler.saveAllWineParsedInfo(wine);
+                            } catch (Exception e) {
+                                log.error("DB error ", e);
+                            }
                             log.trace("Wine: {} added to database", wineCounter.getAndIncrement());
                         } catch (IOException e) {
                             log.error("Error while parsing page: ", e);
